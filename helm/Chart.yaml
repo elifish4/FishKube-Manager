@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: fishkube-manager
+version: 0.1.0
+appVersion: "0.1.0"
+description: A modern Flask-based Kubernetes management UI
+type: application

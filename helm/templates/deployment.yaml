@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fishkube-manager
+  labels:
+    {{- include "fishkube-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  strategy:
+    type: {{ .Values.deployment.strategy.type | default "Recreate" }}
+    {{- if eq (.Values.deployment.strategy.type | default "Recreate") "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge | default 0 }}
+      maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable | default 1 }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fishkube-manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fishkube-manager
+        {{- include "fishkube-manager.labels" . | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.deployment.terminationGraceSeconds | default 10 }}
+      serviceAccountName: {{ include "fishkube-manager.serviceAccountName" . }}
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: manager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:                
+            - name: OPENAI_TEMPERATURE
+              value: "{{ .Values.ai.OPENAI_TEMPERATURE }}"
+            - name: OPENAI_MODEL
+              value: "{{ .Values.ai.OPENAI_MODEL }}"
+            - name: OPENAI_API_KEY
+              value: "{{ .Values.ai.OPENAI_API_KEY }}"
+            - name: FKM_AI_PROVIDER
+              value: "{{ .Values.ai.AI_PROVIDER | default "openai" }}"
+            - name: GEMINI_API_KEY
+              value: "{{ .Values.ai.GEMINI_API_KEY | default "" }}"
+            - name: GEMINI_MODEL
+              value: "{{ .Values.ai.GEMINI_MODEL | default "" }}"
+            - name: AWS_REGION
+              value: "{{ .Values.ai.AWS_REGION | default "" }}"
+            - name: BEDROCK_MODEL_ID
+              value: "{{ .Values.ai.BEDROCK_MODEL_ID | default "" }}"
+            - name: DB_PATH
+              value: "{{ .Values.auth.dbPath }}"
+            - name: FKM_DB
+              value: "{{ .Values.auth.dbPath }}"
+            - name: FKM_BOOTSTRAP_USER
+              value: "{{ .Values.auth.bootstrapUser }}"
+            - name: FKM_SECRET
+              {{- if .Values.auth.secretName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secretName }}
+                  key: {{ .Values.auth.secretKeys.secret }}
+              {{- else }}
+              value: "{{ .Values.auth.secretInline.secret }}"
+              {{- end }}
+            - name: FKM_BOOTSTRAP_PASS
+              {{- if .Values.auth.secretName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secretName }}
+                  key: {{ .Values.auth.secretKeys.bootstrapPass }}
+              {{- else }}
+              value: "{{ .Values.auth.secretInline.bootstrapPass }}"
+              {{- end }}
+            # Auth provider switch
+            - name: FKM_AUTH_PROVIDER
+              value: "{{ .Values.authProvider.provider | default "local" }}"
+            {{- if eq (.Values.authProvider.provider | default "local") "google" }}
+            - name: GOOGLE_CLIENT_ID
+              value: "{{ .Values.authProvider.google.clientId }}"
+            - name: GOOGLE_CLIENT_SECRET
+              value: "{{ .Values.authProvider.google.clientSecret }}"
+            - name: GOOGLE_ALLOWED_DOMAIN
+              value: "{{ .Values.authProvider.google.allowedDomain }}"
+            - name: FKM_OAUTH_REDIRECT_URI
+              value: "{{ .Values.authProvider.google.redirectUri }}"
+            - name: FKM_COOKIE_DOMAIN
+              value: "{{ .Values.authProvider.cookieDomain }}"
+            - name: FKM_SESSION_COOKIE_NAME
+              value: "{{ .Values.authProvider.sessionCookieName | default "fishkube_session" }}"
+            - name: FKM_ALLOW_LOCAL_WITH_GOOGLE
+              value: "{{ ternary "true" "false" (.Values.authProvider.allowLocalWithGoogle | default true) }}"
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+          {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "fishkube-manager.fullname" . }}-data
+          {{- end }}
+      {{- end }}

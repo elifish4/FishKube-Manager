@@ -1,0 +1,45 @@
+{{- if .Values.rbac.create -}}
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fishkube-manager
+rules:
+  # Core
+  - apiGroups: [""]
+    resources: ["pods","pods/log","pods/status","pods/eviction","services","configmaps","secrets","nodes","namespaces","events","persistentvolumes","persistentvolumeclaims"]
+    verbs: ["get","list","watch","delete","patch","update"]
+  # Storage
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get","list","watch","delete","patch","update"]
+  # Workloads
+  - apiGroups: ["apps"]
+    resources: ["deployments","replicasets","statefulsets","daemonsets"]
+    verbs: ["get","list","watch","patch","update","delete"]
+  # Scale subresources
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale","replicasets/scale","statefulsets/scale","daemonsets/scale"]
+    verbs: ["get","update","patch"]
+  # Batch
+  - apiGroups: ["batch"]
+    resources: ["jobs","cronjobs"]
+    verbs: ["get","list","watch","patch","update","delete"]
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses","ingressclasses"]
+    verbs: ["get","list","watch","patch","update","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fishkube-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fishkube-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "fishkube-manager.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end -}}

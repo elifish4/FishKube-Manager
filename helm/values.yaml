@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: Apache-2.0
+image:
+  repository: docker.io/kokofish/fishkube-manager
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 1
+
+# Deployment strategy
+deployment:
+  strategy:
+    # Use Recreate to avoid PVC multi-attach during updates
+    type: Recreate  # or RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  terminationGraceSeconds: 10
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "internal-nginx"
+  annotations: []
+    #alb.ingress.kubernetes.io/scheme: internal
+    #alb.ingress.kubernetes.io/target-type: ip
+    #alb.ingress.kubernetes.io/load-balancer-name: fishkube-manager-stage
+  hosts:
+    - host: fishkube-manager.<YOUR_DOMAIN>.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: ""
+
+env:
+  - name: DB_PATH
+    value: /data/users.db
+  - name: BOOTSTRAP_ADMIN
+    valueFrom:
+      secretKeyRef:
+        name: fishkube-admin
+        key: username
+  - name: BOOTSTRAP_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: fishkube-admin
+        key: password
+  - name: FKM_SCALE_WAIT
+    value: "45"
+  - name: FKM_CHAT_BUDGET
+    value: "50"
+  # Optional: Prometheus base URL to enable 1h CPU/memory usage column
+  - name: FKM_PROM_URL
+    value: "http://prometmonitoring-kube-prometheus-prometheusheus.monitoring.svc:9090"
+
+  # Optional: Monitoring deep link for pod "Resources usage monitoring" button
+  # Base URL example: https://grafana.<YOUR_DOMAIN>.com/
+  - name: FKM_MONITORING_BASE_URL
+    value: ""
+  # Query template example (namespace placeholder will be replaced):
+  # d/d/<UID>/kubernetes-compute-resources-namespace-workloads?...&var-namespace=<namespace>&var-type=All
+  - name: FKM_MONITORING_QUERY_TEMPLATE
+    value: ""
+
+  # If false, hide the "Resources usage monitoring" button in the UI
+  - name: FKM_EXTERNAL_MONITORING_URL_BTN
+    value: "false"
+
+auth:
+  enabled: true
+  dbPath: /data/users.db
+  secretName: ""               # not using a k8s secret
+  secretInline:
+    secret: "fishkube-admin"
+    bootstrapPass: "change_me"
+    bootstrapUser: "admin"
+
+# Authentication provider
+# provider: local | google
+authProvider:
+  provider: google
+  # Optional: cookie domain for session cookie.If empty, derived from ingress host.
+  cookieDomain: "<YOUR_DOMAIN>.com"
+  # Optional: override session cookie name (helps avoid collisions across apps)
+  sessionCookieName: "fishkube_session"
+  # Allow local DB login alongside Google
+  allowLocalWithGoogle: true
+  google:
+    clientId: ""
+    clientSecret: ""
+    allowedDomain: "<YOUR_DOMAIN>.com" 
+    redirectUri: "https://fishkube-manager.<YOUR_DOMAIN>.com/api/auth/google/callback"
+
+persistence:
+  enabled: true
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /data
+  storageClassName: ""     
+  existingClaim: ""        
+
+ai:
+  OPENAI_API_KEY: ""
+  OPENAI_MODEL: "gpt-5"
+  OPENAI_TEMPERATURE: "1"
+  # AI provider selection: openai | gemini | bedrock_anthropic
+  AI_PROVIDER: "openai"
+  # Gemini (Google) settings
+  GEMINI_API_KEY: ""
+  GEMINI_MODEL: "gemini-1.5-pro"
+  # AWS Bedrock (Anthropic Claude) settings
+  AWS_REGION: ""
+  BEDROCK_MODEL_ID: "anthropic.claude-3-5-sonnet-20240620-v1:0"

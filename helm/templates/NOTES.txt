@@ -1,0 +1,7 @@
+1. Get the app URL by running these commands:
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name=fishkube-manager" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward pod/$POD_NAME 8080:8080
+  open http://localhost:8080
