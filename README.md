@@ -8,10 +8,10 @@ FishKube Manager is a modern Kubernetes management dashboard built with Flask an
 
 It focuses on operational visibility, safe resource management, and optional AI assisted cluster interactions.
 
-![alt text](image.png)
+![alt text](screenshots/image.png)
 
 
-![alt text](image-2.png)
+![alt text](screenshots/image-2.png)
 
 ## Features
 - Cluster or namespace overview dashboard
