@@ -1,5 +1,9 @@
 # FishKube Manager
 
+
+
+
+
 FishKube Manager is a modern Kubernetes management dashboard built with Flask and Gunicorn, featuring a lightweight vanilla JavaScript frontend and a Helm chart for Kubernetes deployment.
 
 It focuses on operational visibility, safe resource management, and optional AI assisted cluster interactions.
