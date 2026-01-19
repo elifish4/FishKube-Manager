@@ -29,6 +29,8 @@ It focuses on operational visibility, safe resource management, and optional AI 
 - YAML editor
 - Chat AI assistant
 
+![alt text](image.png)
+
 ## Quick Start
 
 ### Kubernetes
