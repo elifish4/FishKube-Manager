@@ -1,0 +1,48 @@
+
+mode: agent
+
+image:
+  pullPolicy: Always
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  # Enable and configure below if the agent must be reachable from a remote manager
+  className: "nginx"
+  annotations: {}
+  hosts: 
+    - host: fishkube-agent.agorareal.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 500Mi
+  limits:
+    memory: 2Gi
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: ""
+
+# Override the manager env list – agent doesn't need manager-specific vars
+env: []
+
+# Agent-specific
+agent:
+  image:
+    repository: docker.io/kokofish/fishkube-agent
+    tag: latest
+  # Set this to the bearer token expected by the central Manager
+  token: ""

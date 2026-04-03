@@ -2,11 +2,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
   labels:
-    {{- include "fishkube-manager.labels" . | nindent 4 }}
+    {{- include "fishkube.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+{{- if eq (.Values.mode | default "manager") "manager" }}
   strategy:
     type: {{ .Values.deployment.strategy.type | default "Recreate" }}
     {{- if eq (.Values.deployment.strategy.type | default "Recreate") "RollingUpdate" }}
@@ -14,27 +15,51 @@ spec:
       maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge | default 0 }}
       maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable | default 1 }}
     {{- end }}
+{{- end }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: fishkube-manager
+      {{- include "fishkube.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: fishkube-manager
-        {{- include "fishkube-manager.labels" . | nindent 8 }}
+        {{- include "fishkube.selectorLabels" . | nindent 8 }}
+        {{- include "fishkube.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+{{- if eq (.Values.mode | default "manager") "manager" }}
       terminationGracePeriodSeconds: {{ .Values.deployment.terminationGraceSeconds | default 10 }}
-      serviceAccountName: {{ include "fishkube-manager.serviceAccountName" . }}
+{{- end }}
+      serviceAccountName: {{ include "fishkube.serviceAccountName" . }}
+{{- if eq (.Values.mode | default "manager") "manager" }}
       securityContext:
         fsGroup: 1000
+{{- end }}
       containers:
-        - name: manager
+        - name: {{ include "fishkube.appName" . }}
+{{- if eq (.Values.mode | default "manager") "agent" }}
+          image: "{{ .Values.agent.image.repository | default .Values.image.repository }}:{{ .Values.agent.image.tag | default .Values.image.tag }}"
+{{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+{{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8080
-          env:                
+              containerPort: {{ include "fishkube.containerPort" . }}
+              protocol: TCP
+{{- if eq (.Values.mode | default "manager") "agent" }}
+          # ── Agent env ──────────────────────────────────────
+          env:
+            - name: FKM_AGENT_TOKEN
+              value: "{{ .Values.agent.token }}"
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+{{- else }}
+          # ── Manager env ────────────────────────────────────
+          env:
             - name: OPENAI_TEMPERATURE
               value: "{{ .Values.ai.OPENAI_TEMPERATURE }}"
             - name: OPENAI_MODEL
@@ -75,7 +100,6 @@ spec:
               {{- else }}
               value: "{{ .Values.auth.secretInline.bootstrapPass }}"
               {{- end }}
-            # Auth provider switch
             - name: FKM_AUTH_PROVIDER
               value: "{{ .Values.authProvider.provider | default "local" }}"
             {{- if eq (.Values.authProvider.provider | default "local") "google" }}
@@ -94,31 +118,46 @@ spec:
             - name: FKM_ALLOW_LOCAL_WITH_GOOGLE
               value: "{{ ternary "true" "false" (.Values.authProvider.allowLocalWithGoogle | default true) }}"
             {{- end }}
+            {{- if .Values.integrations }}
+            {{- if .Values.integrations.jira }}
+            - name: FKM_JIRA_BASE_URL
+              value: "{{ .Values.integrations.jira.baseUrl | default "" }}"
+            - name: FKM_JIRA_USER_EMAIL
+              value: "{{ .Values.integrations.jira.userEmail | default "" }}"
+            - name: FKM_JIRA_API_TOKEN
+              value: "{{ .Values.integrations.jira.apiToken | default "" }}"
+            {{- end }}
+            {{- if .Values.integrations.slack }}
+            - name: FKM_SLACK_BOT_TOKEN
+              value: "{{ .Values.integrations.slack.botToken | default "" }}"
+            - name: FKM_SLACK_CHANNEL_ID
+              value: "{{ .Values.integrations.slack.channelId | default "" }}"
+            {{- end }}
+            {{- end }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+{{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           readinessProbe:
             httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
+              path: {{ include "fishkube.healthPath" . }}
+              port: {{ include "fishkube.containerPort" . }}
+            initialDelaySeconds: {{ ternary 3 5 (eq (.Values.mode | default "manager") "agent") }}
+            periodSeconds: {{ ternary 10 5 (eq (.Values.mode | default "manager") "agent") }}
           livenessProbe:
             httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          {{- if .Values.persistence.enabled }}
+              path: {{ include "fishkube.healthPath" . }}
+              port: {{ include "fishkube.containerPort" . }}
+            initialDelaySeconds: {{ ternary 5 10 (eq (.Values.mode | default "manager") "agent") }}
+            periodSeconds: {{ ternary 30 10 (eq (.Values.mode | default "manager") "agent") }}
+{{- if and (eq (.Values.mode | default "manager") "manager") .Values.persistence.enabled }}
           volumeMounts:
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
-          {{- end }}
-          {{- if .Values.persistence.enabled }}
       volumes:
         - name: data
           {{- if .Values.persistence.existingClaim }}
@@ -126,6 +165,6 @@ spec:
             claimName: {{ .Values.persistence.existingClaim }}
           {{- else }}
           persistentVolumeClaim:
-            claimName: {{ include "fishkube-manager.fullname" . }}-data
+            claimName: {{ include "fishkube.fullname" . }}-data
           {{- end }}
-      {{- end }}
+{{- end }}

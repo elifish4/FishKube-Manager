@@ -3,13 +3,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
   {{- $hasAnnotations := or .Values.ingress.annotations .Values.ingress.className }}
   {{- if $hasAnnotations }}
   annotations:
-    {{- if and .Values.ingress.className (not (and .Values.ingress.annotations (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class"))) }}
-
-    {{- end }}
     {{- with .Values.ingress.annotations }}
 {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -28,11 +25,13 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: fishkube-manager
+                name: {{ include "fishkube.fullname" $ }}
                 port:
                   number: {{ $.Values.service.port }}
           {{- end }}
     {{- end }}
+  {{- with .Values.ingress.tls }}
   tls:
-    {{- toYaml .Values.ingress.tls | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end -}}

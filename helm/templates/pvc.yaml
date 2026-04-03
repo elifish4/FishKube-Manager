@@ -1,11 +1,13 @@
-{{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+{{- if and (eq (.Values.mode | default "manager") "manager") .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
 # SPDX-License-Identifier: Apache-2.0
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "fishkube-manager.fullname" . }}-data
+  name: {{ include "fishkube.fullname" . }}-data
+  annotations:
+    "helm.sh/resource-policy": keep
   labels:
-    {{- include "fishkube-manager.labels" . | nindent 4 }}
+    {{- include "fishkube.labels" . | nindent 4 }}
 spec:
   accessModes: {{- toYaml .Values.persistence.accessModes | nindent 2 }}
   resources:

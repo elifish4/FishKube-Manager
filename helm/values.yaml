@@ -1,8 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
+
+# ──────────────────────────────────────────────────────────────
+# mode: "manager" (default) – deploys the central FishKube Manager UI
+#       "agent"             – deploys the lightweight remote-cluster agent
+# ──────────────────────────────────────────────────────────────
+mode: manager
+
 image:
   repository: docker.io/kokofish/fishkube-manager
   tag: latest
   pullPolicy: Always
+
+# Optional: annotations applied to the Deployment's pod template.
+# Useful to force a rollout even when the image tag doesn't change.
+podAnnotations: {}
 
 replicaCount: 1
 
@@ -19,12 +30,12 @@ deployment:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 8080
+  # targetPort is auto-resolved from mode (8080 for manager, 8081 for agent)
 
 ingress:
   enabled: true
   className: "internal-nginx"
-  annotations: []
+  annotations: {}
     #alb.ingress.kubernetes.io/scheme: internal
     #alb.ingress.kubernetes.io/target-type: ip
     #alb.ingress.kubernetes.io/load-balancer-name: fishkube-manager-stage
@@ -124,3 +135,26 @@ ai:
   # AWS Bedrock (Anthropic Claude) settings
   AWS_REGION: ""
   BEDROCK_MODEL_ID: "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+# ──────────────────────────────────────────────────────────────
+# Integrations (Jira, Slack)
+# ──────────────────────────────────────────────────────────────
+integrations:
+  jira:
+    baseUrl: ""          # e.g. https://yourcompany.atlassian.net
+    userEmail: ""        # Jira account email for API auth
+    apiToken: ""         # Jira API token (Atlassian account settings)
+  slack:
+    botToken: ""         # Slack Bot Token (xoxb-...)
+    channelId: ""        # Slack Channel ID (e.g. C0ARF2Y99FS)
+
+# ──────────────────────────────────────────────────────────────
+# Agent-specific settings (only used when mode: agent)
+# ──────────────────────────────────────────────────────────────
+agent:
+  # Image override for agent mode (if not set, top-level image is used)
+  image:
+    repository: docker.io/kokofish/fishkube-agent
+    tag: latest
+  # Bearer token the central Manager sends in the Authorization header
+  token: "my-secret-token"

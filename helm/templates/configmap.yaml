@@ -1,7 +1,9 @@
+{{- if eq (.Values.mode | default "manager") "manager" }}
 # SPDX-License-Identifier: Apache-2.0
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fishkube-manager-config
+  name: {{ include "fishkube.fullname" . }}-config
   labels:
-    app.kubernetes.io/name: fishkube-manager
+    {{- include "fishkube.labels" . | nindent 4 }}
+{{- end }}

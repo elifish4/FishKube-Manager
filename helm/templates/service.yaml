@@ -2,12 +2,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
+  labels:
+    {{- include "fishkube.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   selector:
-    app.kubernetes.io/name: fishkube-manager
+    {{- include "fishkube.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.service.port }}
-      targetPort: 8080
+      targetPort: {{ include "fishkube.containerPort" . }}
+      protocol: TCP

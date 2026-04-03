@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
 rules:
   # Core
   - apiGroups: [""]
@@ -29,17 +29,23 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses","ingressclasses"]
     verbs: ["get","list","watch","patch","update","delete"]
+{{- if eq (.Values.mode | default "manager") "agent" }}
+  # Metrics (agent-only – used for CPU/memory usage columns)
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes","pods"]
+    verbs: ["get","list"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: fishkube-manager
+  name: {{ include "fishkube.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "fishkube-manager.serviceAccountName" . }}
+    name: {{ include "fishkube.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end -}}

@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 apiVersion: v2
-name: fishkube-manager
-version: 0.1.0
-appVersion: "0.1.0"
-description: A modern Flask-based Kubernetes management UI
+name: fishkube
+version: 0.2.0
+appVersion: "0.2.0"
+description: >-
+  FishKube – unified Helm chart.
+  Set mode=manager (default) for the central management UI,
+  or mode=agent for the lightweight remote-cluster agent.
 type: application
